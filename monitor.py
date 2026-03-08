@@ -100,7 +100,7 @@ def send_email(changes, receivers):
                 </ul>
             </div>
             <div style="background-color: #f1f1f1; color: #777; font-size: 12px; text-align: center; padding: 12px;">
-                Wiadomość wygenerowana automatycznie przez system powiadomień RT.
+                Wiadomość wygenerowana automatycznie przez system powiadomień.
             </div>
         </div>
     </body>
