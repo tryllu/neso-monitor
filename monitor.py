@@ -133,7 +133,7 @@ def send_email(html_changes, receivers):
             msg.attach(MIMEText(html_body, 'html', 'utf-8'))
             
             server.send_message(msg)
-            print(f"E-mail HTML wysłany pomyślnie do: {receiver}")
+            print(f"E-mail HTML wysłany pomyślnie do: {email}")
             
         server.quit()
     except Exception as e:
