@@ -234,7 +234,7 @@ def main():
 
 
     # --- 3. WYSYŁKA MAILA ---
-    if changes:
+    if html_changes:
         print("Wykryto zmiany! Pobieram listę adresatów...")
         receivers = get_receivers()
         send_email(html_changes, receivers)
