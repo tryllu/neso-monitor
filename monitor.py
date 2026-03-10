@@ -202,10 +202,10 @@ def main():
                     # Formatuje zmianę przy użyciu HTML i emotikon (oryginalne statusy wielkimi literami)
                     if new_status == "open":
                         html_changes.append(f"&#9989; <strong>{key}</strong>: Status zmienił się na <span style='color: #28a745; font-weight: bold;'>{new_status.upper()}</span>")
-                        wa_changes.append(f"✅ *{key}*: Status zmienil sie na 🟢 *{new_status.upper()}*")
+                        wa_changes.append(f"✅ *{key}*: Status zmienił sie na 🟢 *{new_status.upper()}*")
                     else:
                         html_changes.append(f"&#10060; <strong>{key}</strong>: Status zmienił się na <span style='color: #dc3545; font-weight: bold;'>{new_status.upper()}</span>")
-                        wa_changes.append(f"❌ *{key}*: Status zmienil sie na 🔴 *{new_status.upper()}*")
+                        wa_changes.append(f"❌ *{key}*: Status zmienilł sie na 🔴 *{new_status.upper()}*")
 
     # Zapisanie nowego stanu stacji
     with open(STATE_FILE, 'w', encoding='utf-8') as f:
@@ -232,7 +232,7 @@ def main():
         for msg in previous_messages:
             if msg not in current_messages:
                 html_changes.append(f"&#128465; <span style='color: #6c757d; font-weight: bold;'>USUNIĘTO KOMUNIKAT:</span> <s style='color: #999;'>{msg}</s>")
-                wa_changes.append(f"🗑️ ⚪ *USUNIETO KOMUNIKAT:* ~{msg}~")
+                wa_changes.append(f"🗑️ ⚪ *USUNIĘTO KOMUNIKAT:* ~{msg}~")
 
     # Zapisanie nowego stanu komunikatów
     with open(MESSAGES_FILE, 'w', encoding='utf-8') as f:
