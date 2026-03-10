@@ -238,7 +238,7 @@ def main():
         print("Wykryto zmiany! Pobieram listę adresatów...")
         receivers = get_receivers()
         send_email(html_changes, receivers)
-        end_whatsapp(wa_changes, receivers)
+        send_whatsapp(wa_changes, receivers)
     else:
         print("Brak interesujących zmian na stacjach i w komunikatach.")
 
