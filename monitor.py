@@ -140,6 +140,7 @@ def send_email(html_changes, receivers):
         print(f"Błąd wysyłania e-maila: {e}")
 
 def send_whatsapp(wa_changes, receivers):
+    """Wysyła wiadomości WhatsApp do użytkowników z odpowiednimi danymi."""
     if not wa_changes:
         return
         
@@ -147,21 +148,26 @@ def send_whatsapp(wa_changes, receivers):
     for change in wa_changes:
         message += f"{change}\n\n"
         
-    encoded_message = urllib.parse.quote(message)
+    url = "https://api.callmebot.com/whatsapp.php"
     
     for r in receivers:
         phone = r.get('wa_phone')
         apikey = r.get('wa_apikey')
         
-        # Wysyłamy tylko jeśli użytkownik ma numer i klucz
         if phone and apikey:
-            url = f"https://api.callmebot.com/whatsapp.php?phone={phone}&text={encoded_message}&apikey={apikey}"
+            # Tworzymy pakiet danych, a biblioteka requests sama zajmie się poprawnym kodowaniem (UTF-8) polskich znaków i emotikon
+            payload = {
+                "phone": phone,
+                "text": message,
+                "apikey": apikey
+            }
+            
             try:
-                response = requests.get(url, timeout=10)
+                response = requests.get(url, params=payload, timeout=10)
                 if response.status_code == 200:
                     print(f"Wiadomość WhatsApp wysłana do: {phone}")
                 else:
-                    print(f"Błąd WhatsApp dla {phone}: {response.status_code}")
+                    print(f"Błąd WhatsApp dla {phone}: {response.text}")
             except Exception as e:
                 print(f"Błąd połączenia WhatsApp dla {phone}: {e}")
 
