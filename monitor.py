@@ -6,6 +6,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from requests.adapters import HTTPAdapter, Retry
+import urllib.parse
 
 # --- USTAWIENIA ---
 URL = "https://stacjeneso.pl"
@@ -15,8 +16,7 @@ SENDER_EMAIL = os.environ.get("SMTP_EMAIL")
 SENDER_PASSWORD = os.environ.get("SMTP_PASSWORD")
 
 def get_receivers():
-    """Pobiera listę adresów e-mail z Sekretów, ignorując zakomentowane znakiem #."""
-    # Pobieramy zawartość Sekretu (lub pusty ciąg, jeśli go nie ma)
+    """Pobiera listę odbiorców z Sekretów i dzieli na email, telefon i klucz API."""
     emails_raw = os.environ.get("RECEIVER_EMAILS", "")
     
     if not emails_raw:
@@ -24,15 +24,26 @@ def get_receivers():
         return []
 
     receivers = []
-    # Dzielimy pobrany tekst na poszczególne linijki
     for line in emails_raw.splitlines():
         clean_line = line.strip()
-        # Jeśli linia nie jest pusta i nie zaczyna się od '#'
+        # Ignorujemy linie zaczynające się od #
         if clean_line and not clean_line.startswith('#'):
-            receivers.append(clean_line)
+            # Rozdzielamy po przecinku
+            parts = [p.strip() for p in clean_line.split(',')]
+            
+            # Przypisujemy wartości (nawet jeśli ktoś podał tylko maila bez przecinków)
+            email = parts[0]
+            wa_phone = parts[1] if len(parts) >= 2 else None
+            wa_apikey = parts[2] if len(parts) >= 3 else None
+            
+            receivers.append({
+                'email': email,
+                'wa_phone': wa_phone,
+                'wa_apikey': wa_apikey
+            })
             
     return receivers
-
+    
 def get_page_data():
     """Pobiera stronę z włączonym mechanizmem ponawiania i User-Agentem."""
     session = requests.Session()
@@ -72,10 +83,11 @@ def extract_messages(soup):
                 messages.append(text)
     return messages
 
-def send_email(changes, receivers):
-    """Generuje szablon HTML i wysyła maile do odbiorców z listy."""
-    if not receivers:
-        print("Lista odbiorców jest pusta. Pomijam wysyłanie e-maili.")
+def send_email(html_changes, receivers):
+    # Wyciągamy same maile z listy
+    emails = [r['email'] for r in receivers if r.get('email')]
+    if not emails:
+        print("Lista adresów e-mail jest pusta. Pomijam wysyłanie e-maili.")
         return
 
     subject = "ZMIANA STATUSU: Stacje Neso"
@@ -93,7 +105,7 @@ def send_email(changes, receivers):
                 <ul style="list-style-type: none; padding: 0; margin: 0;">
     """
     
-    for change in changes:
+    for change in html_changes:
         html_body += f"<li style='margin-bottom: 12px; padding: 12px; background-color: #f8f9fa; border-left: 4px solid #0056b3; border-radius: 4px;'>{change}</li>\n"
         
     html_body += """
@@ -112,10 +124,10 @@ def send_email(changes, receivers):
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         
-        for receiver in receivers:
+        for email in emails:
             msg = MIMEMultipart()
             msg['From'] = f"Monitor Neso <{SENDER_EMAIL}>"
-            msg['To'] = receiver
+            msg['To'] = email
             msg['Subject'] = subject
             
             msg.attach(MIMEText(html_body, 'html', 'utf-8'))
@@ -127,12 +139,39 @@ def send_email(changes, receivers):
     except Exception as e:
         print(f"Błąd wysyłania e-maila: {e}")
 
+def send_whatsapp(wa_changes, receivers):
+    if not wa_changes:
+        return
+        
+    message = "🟦 *Aktualizacja: Stacje Neso*\n\n"
+    for change in wa_changes:
+        message += f"{change}\n\n"
+        
+    encoded_message = urllib.parse.quote(message)
+    
+    for r in receivers:
+        phone = r.get('wa_phone')
+        apikey = r.get('wa_apikey')
+        
+        # Wysyłamy tylko jeśli użytkownik ma numer i klucz
+        if phone and apikey:
+            url = f"https://api.callmebot.com/whatsapp.php?phone={phone}&text={encoded_message}&apikey={apikey}"
+            try:
+                response = requests.get(url, timeout=10)
+                if response.status_code == 200:
+                    print(f"Wiadomość WhatsApp wysłana do: {phone}")
+                else:
+                    print(f"Błąd WhatsApp dla {phone}: {response.status_code}")
+            except Exception as e:
+                print(f"Błąd połączenia WhatsApp dla {phone}: {e}")
+
 def main():
     soup, raw_text = get_page_data()
     if not soup:
         return
 
-    changes = []
+    html_changes = []
+    wa_changes = []
 
     # --- 1. SPRAWDZANIE STACJI ---
     current_data_raw = extract_stations(soup)
@@ -156,9 +195,11 @@ def main():
                 if old_status == "open" or new_status == "open":
                     # Formatuje zmianę przy użyciu HTML i emotikon (oryginalne statusy wielkimi literami)
                     if new_status == "open":
-                        changes.append(f"&#9989; <strong>{key}</strong>: Status zmienił się na <span style='color: #28a745; font-weight: bold;'>{new_status.upper()}</span>")
+                        html_changes.append(f"&#9989; <strong>{key}</strong>: Status zmienił się na <span style='color: #28a745; font-weight: bold;'>{new_status.upper()}</span>")
+                        wa_changes.append(f"✅ *{key}*: Status zmienil sie na 🟢 *{new_status.upper()}*")
                     else:
-                        changes.append(f"&#10060; <strong>{key}</strong>: Status zmienił się na <span style='color: #dc3545; font-weight: bold;'>{new_status.upper()}</span>")
+                        html_changes.append(f"&#10060; <strong>{key}</strong>: Status zmienił się na <span style='color: #dc3545; font-weight: bold;'>{new_status.upper()}</span>")
+                        wa_changes.append(f"❌ *{key}*: Status zmienil sie na 🔴 *{new_status.upper()}*")
 
     # Zapisanie nowego stanu stacji
     with open(STATE_FILE, 'w', encoding='utf-8') as f:
@@ -179,11 +220,13 @@ def main():
     if os.path.exists(MESSAGES_FILE):
         for msg in current_messages:
             if msg not in previous_messages:
-                changes.append(f"&#128227; <span style='color: #d9534f; font-weight: bold;'>NOWY KOMUNIKAT:</span> {msg}")
+                html_changes.append(f"&#128227; <span style='color: #d9534f; font-weight: bold;'>NOWY KOMUNIKAT:</span> {msg}")
+                wa_changes.append(f"📣 🔴 *NOWY KOMUNIKAT:* {msg}")
         
         for msg in previous_messages:
             if msg not in current_messages:
-                changes.append(f"&#128465; <span style='color: #6c757d; font-weight: bold;'>USUNIĘTO KOMUNIKAT:</span> <s style='color: #999;'>{msg}</s>")
+                html_changes.append(f"&#128465; <span style='color: #6c757d; font-weight: bold;'>USUNIĘTO KOMUNIKAT:</span> <s style='color: #999;'>{msg}</s>")
+                wa_changes.append(f"🗑️ ⚪ *USUNIETO KOMUNIKAT:* ~{msg}~")
 
     # Zapisanie nowego stanu komunikatów
     with open(MESSAGES_FILE, 'w', encoding='utf-8') as f:
@@ -194,7 +237,8 @@ def main():
     if changes:
         print("Wykryto zmiany! Pobieram listę adresatów...")
         receivers = get_receivers()
-        send_email(changes, receivers)
+        send_email(html_changes, receivers)
+        end_whatsapp(wa_changes, receivers)
     else:
         print("Brak interesujących zmian na stacjach i w komunikatach.")
 
