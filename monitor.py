@@ -76,7 +76,8 @@ def extract_messages(soup):
     messages = []
     slider = soup.select_one('.section--slider__container')
     if slider:
-        slides = slider.select('.section--slider__container__slide-red')
+        # Łapiemy wszystkie slajdy po klasie bazowej
+        slides = slider.select('.section--slider__container__slide')
         for slide in slides:
             text = slide.get_text(strip=True)
             if text:
