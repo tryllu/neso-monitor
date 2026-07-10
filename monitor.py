@@ -203,7 +203,7 @@ def main():
                         wa_changes.append(f"✅ *{key}*: Status zmienił sie na 🟢 *{new_status.upper()}*")
                     else:
                         html_changes.append(f"&#10060; <strong>{key}</strong>: Status zmienił się na <span style='color: #dc3545; font-weight: bold;'>{new_status.upper()}</span>")
-                        wa_changes.append(f"❌ *{key}*: Status zmienilł sie na 🔴 *{new_status.upper()}*")
+                        wa_changes.append(f"❌ *{key}*: Status zmienił sie na 🔴 *{new_status.upper()}*")
 
     # Zapisanie nowego stanu stacji
     with open(STATE_FILE, 'w', encoding='utf-8') as f:
